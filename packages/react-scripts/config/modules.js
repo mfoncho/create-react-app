@@ -57,6 +57,32 @@ function getAdditionalModulePaths(options = {}) {
   );
 }
 
+function trimGlob(str) {
+  return str.endsWith('/*') ? str.substr(0, str.length - 2) : str;
+}
+
+/**
+ * Get tsconfig paths aliases based on the baseUrl
+ *
+ * @param {*} options
+ */
+function getTsPathsAliases(options = {}) {
+  let aliases = {};
+  if (Object.keys(options.paths || {}).length == 0) {
+    return aliases;
+  }
+  const baseUrlResolved = path.resolve(paths.appPath, options.baseUrl);
+
+  for (let tsalias in options.paths) {
+    const [aliasPath] = options.paths[tsalias];
+    if (aliasPath) {
+      const aliase = trimGlob(tsalias);
+      aliases[aliase] = path.relative(baseUrlResolved, trimGlob(aliasPath));
+    }
+  }
+  return aliases;
+}
+
 /**
  * Get webpack aliases based on the baseUrl of a compilerOptions object.
  *
@@ -71,11 +97,14 @@ function getWebpackAliases(options = {}) {
 
   const baseUrlResolved = path.resolve(paths.appPath, baseUrl);
 
+  const aliases = getTsPathsAliases(options);
   if (path.relative(paths.appPath, baseUrlResolved) === '') {
     return {
       src: paths.appSrc,
+      ...aliases,
     };
   }
+  return aliases;
 }
 
 /**
