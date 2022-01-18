@@ -58,8 +58,7 @@ const resolveModule = (resolveFn, filePath) => {
   return resolveFn(`${filePath}.js`);
 };
 
-// config after eject: we're in ./config/
-module.exports = {
+const paths = {
   dotenv: resolveApp('.env'),
   appPath: resolveApp('.'),
   appBuild: resolveApp(buildPath),
@@ -77,32 +76,17 @@ module.exports = {
   appWebpackCache: resolveApp('node_modules/.cache'),
   appTsBuildInfoFile: resolveApp('node_modules/.cache/tsconfig.tsbuildinfo'),
   swSrc: resolveModule(resolveApp, 'src/service-worker'),
-  publicUrlOrPath,
+  publicUrlOrPath: publicUrlOrPath,
 };
 
+// config after eject: we're in ./config/
+module.exports = paths
 // @remove-on-eject-begin
 const resolveOwn = relativePath => path.resolve(__dirname, '..', relativePath);
 
 // config before eject: we're in ./node_modules/react-scripts/config/
 module.exports = {
-  dotenv: resolveApp('.env'),
-  appPath: resolveApp('.'),
-  appBuild: resolveApp(buildPath),
-  appPublic: resolveApp('public'),
-  appHtml: resolveApp('public/index.html'),
-  appIndexJs: resolveModule(resolveApp, 'src/index'),
-  appPackageJson: resolveApp('package.json'),
-  appSrc: resolveApp('src'),
-  appTsConfig: resolveApp('tsconfig.json'),
-  appJsConfig: resolveApp('jsconfig.json'),
-  yarnLockFile: resolveApp('yarn.lock'),
-  testsSetup: resolveModule(resolveApp, 'src/setupTests'),
-  proxySetup: resolveApp('src/setupProxy.js'),
-  appNodeModules: resolveApp('node_modules'),
-  appWebpackCache: resolveApp('node_modules/.cache'),
-  appTsBuildInfoFile: resolveApp('node_modules/.cache/tsconfig.tsbuildinfo'),
-  swSrc: resolveModule(resolveApp, 'src/service-worker'),
-  publicUrlOrPath,
+  ...paths,
   // These properties only exist before ejecting:
   ownPath: resolveOwn('.'),
   ownNodeModules: resolveOwn('node_modules'), // This is empty on npm 3
@@ -110,17 +94,24 @@ module.exports = {
   ownTypeDeclarations: resolveOwn('lib/react-app.d.ts'),
 };
 
-const ownPackageJson = require('../package.json');
-const reactScriptsPath = resolveApp(`node_modules/${ownPackageJson.name}`);
-const reactScriptsLinked =
-  fs.existsSync(reactScriptsPath) &&
-  fs.lstatSync(reactScriptsPath).isSymbolicLink();
+function isDevReactScripts(){
+  const ownPackageJson = require('../package.json');
+  const appPackageJson = require(paths.appPackageJson);
+  if(appPackageJson){
+    let dependencies = {...appPackageJson.dependencies, ...appPackageJson.devDependencies}
+    if(dependencies[ownPackageJson.name]){
+      return false;
+    }
+  }
+  const reactScriptsPath = resolveApp(`node_modules/${ownPackageJson.name}`);
+  const reactScriptsInstalled = fs.existsSync(reactScriptsPath);
+  const reactScriptsLinked = reactScriptsInstalled && fs.lstatSync(reactScriptsPath).isSymbolicLink();
+  return !reactScriptsLinked && __dirname.indexOf(path.join('packages', 'react-scripts', 'config')) !== -1
+
+}
 
 // config before publish: we're in ./packages/react-scripts/config/
-if (
-  !reactScriptsLinked &&
-  __dirname.indexOf(path.join('packages', 'react-scripts', 'config')) !== -1
-) {
+if (isDevReactScripts()) {
   const templatePath = '../cra-template/template';
   module.exports = {
     dotenv: resolveOwn(`${templatePath}/.env`),
